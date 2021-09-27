@@ -5,7 +5,6 @@ Useful vim things for the BBC
 
 - Completion functions for issues, users, projects, emojis
 
-
 Completions
 -----------
 
@@ -41,6 +40,8 @@ Emoji completion requires [junegunn/emoji](https://github.com/junegunn/vim-emoji
 To enable the completion function, add something like this to your vimrc:
 
 ```
+let g:jira_domain = 'https://my.jira.domain'
+
 augroup my_bbc
   au!
   au FileType gitcommit,markdown setlocal completefunc=bbc#complete
@@ -49,3 +50,35 @@ augroup END
 
 Completion can now be triggered by doing \<ctrl-x\> \<ctrl-u\>
 See `:help ins-completion` for more details.
+
+Configuration
+-------------
+
+Specify Jira domain
+```vim
+let g:jira_domain = 'https://my.jira.domain'
+```
+
+Enable completions:
+```vim
+set completefunc=bbc#complete
+```
+
+Automatically set completion function for git commit messages:
+```vim
+augroup my_bbc
+  au!
+  au FileType gitcommit,markdown setlocal completefunc=bbc#complete
+augroup END
+```
+
+See `help :completeopt` for ways to configure the completion menu.
+e.g.
+
+```vim
+" Remove preview panel
+set completeopt-=preview
+
+" Make info pane a popup
+set completeopt+=popup " Make info pane a po
+```
