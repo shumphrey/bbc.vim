@@ -30,7 +30,7 @@ Installation
 Requires vim8 or higher.
 
 Depends on [vim-fugitive](https://github.com/tpope/vim-fugitive)
-Install fugitive.vim then install this plugin in the same way.
+Install fugitive.vim then install this plugin the same way.
 
 Depends on [vim-rhubarb](https://github.com/tpope/vim-rhubarb)
 Set up curl and the GitHub access token as per Rhubarb's instructions.
@@ -42,7 +42,7 @@ To enable the completion function, add something like this to your vimrc:
 ```
 let g:jira_domain = 'https://my.jira.domain'
 
-augroup my_bbc
+augroup gitcommits
   au!
   au FileType gitcommit,markdown setlocal completefunc=bbc#complete
 augroup END
