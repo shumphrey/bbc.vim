@@ -54,19 +54,19 @@ See `:help ins-completion` for more details.
 Configuration
 -------------
 
-Specify Jira domain
+Specify Jira domain, this is required:
 ```vim
 let g:jira_domain = 'https://my.jira.domain'
 ```
 
-Enable completions:
+Set the completion function for `ctrl-x ctrl-u`:
 ```vim
 set completefunc=bbc#complete
 ```
 
 Automatically set completion function for git commit messages:
 ```vim
-augroup my_bbc
+augroup gitcommits
   au!
   au FileType gitcommit,markdown setlocal completefunc=bbc#complete
 augroup END
@@ -80,5 +80,5 @@ e.g.
 set completeopt-=preview
 
 " Make info pane a popup
-set completeopt+=popup " Make info pane a po
+set completeopt+=popup
 ```
