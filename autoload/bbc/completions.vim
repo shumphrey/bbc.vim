@@ -109,6 +109,10 @@ endfunction
 
 function! s:split_remote() abort
     let homepage = rhubarb#HomepageForUrl(FugitiveRemoteUrl())
+    if empty(homepage)
+        call bbc#utils#throw('Not a GitHub repo')
+    endif
+
     let path = matchstr(homepage, '[^/]\+/[^/]\+$')
     return split(path, '/')
 endfunction
@@ -277,22 +281,31 @@ function! bbc#completions#completefunc(findstart, base) abort
     let b:completions = []
     let b:async_doing = {}
 
-    if a:base =~? '^\w\{2,\}-'
+    let homepage = rhubarb#HomepageForUrl(FugitiveRemoteUrl())
+
+    let s:is_github = !empty(homepage)
+    let s:has_jira = exists('g:jira_domain') && !empty(g:jira_domain)
+
+    if s:has_jira && a:base =~? '^\w\{2,\}-'
         let b:async_doing.jira_issues = v:true
         call extend(async_jobs, [s:fetch_jira_issues(a:base)])
-    elseif a:base =~? '^@'
+    elseif s:is_github && a:base =~? '^@'
         let b:async_doing.github_users = v:true
         call extend(async_jobs, [s:fetch_github_users(a:base)])
-    elseif a:base =~? '^#'
+    elseif s:is_github && a:base =~? '^#'
         let b:async_doing.github_issues = v:true
         call extend(async_jobs, [s:fetch_github_issues(a:base)])
     elseif a:base =~? '^:'
         call extend(completions, s:fetch_emojis(a:base))
     elseif len(a:base) > 1
-        let b:async_doing.jira_projects = v:true
-        let b:async_doing.github_issues = v:true
-        call extend(async_jobs, [s:fetch_jira_projects(a:base)])
-        call extend(async_jobs, [s:fetch_github_issues(a:base)])
+        if s:has_jira
+            let b:async_doing.jira_projects = v:true
+            call extend(async_jobs, [s:fetch_jira_projects(a:base)])
+        endif
+        if s:is_github
+            let b:async_doing.github_issues = v:true
+            call extend(async_jobs, [s:fetch_github_issues(a:base)])
+        endif
     endif
 
     call s:wait_for_jobs(async_jobs)
