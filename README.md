@@ -34,6 +34,7 @@ Install fugitive.vim then install this plugin the same way.
 
 Depends on [vim-rhubarb](https://github.com/tpope/vim-rhubarb)
 Set up curl and the GitHub access token as per Rhubarb's instructions.
+Make sure your GitHub API token has sufficient permissions to read Org level repositories.
 
 Emoji completion requires [junegunn/emoji](https://github.com/junegunn/vim-emoji)
 
