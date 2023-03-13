@@ -13,7 +13,13 @@ if exists('g:autoloaded_bbc_github_api')
 endif
 let g:autoloaded_bbc_github_api = 1
 
-function! s:graphql_out_callback(cb, channel, message) abort
+" concat the buffer lines together
+function! s:JobNvimCallback(lines, job, data, type) abort
+    let a:lines[-1] .= remove(a:data, 0)
+    call extend(a:lines, a:data)
+endfunction
+
+function! s:graphql_out_callback(cb, message) abort
     let data = json_decode(a:message)
     if has_key(data, 'errors')
         if type(data.errors) ==# type([])
@@ -28,17 +34,13 @@ function! s:graphql_out_callback(cb, channel, message) abort
     call a:cb(data)
 endfunction
 
-function! s:graphql_err_callback(channel, message) abort
-    echoerr a:message
-endfunction
-
 function! bbc#github#request(query, variables, options) abort
     let url = 'https://api.github.com/graphql'
 
     if !executable('curl')
-        call bbc#utils#throw('curl is required for jira')
+        call bbc#utils#throw('curl is required for GitHub API')
     endif
-    if !has_key(a:options, 'out_cb') || type(a:options.out_cb) != type(function('tr'))
+    if !has_key(a:options, 'cb') || type(a:options.cb) != type(function('tr'))
         call bbc#utils#throw('Need options.out_cb')
     endif
 
@@ -51,11 +53,22 @@ function! bbc#github#request(query, variables, options) abort
     call writefile([payload], tmpfile)
 
     let data = ['-sS', '--netrc', '-A', 'bbc/vim', '-X', 'POST', '--data', '@'.tmpfile, url]
+    let cmd = extend(['curl'], data)
 
-    return job_start(extend(['curl'], data), {
-        \'out_cb': function('s:graphql_out_callback', [a:options.out_cb]),
-        \'err_cb': function('s:graphql_err_callback'),
-    \})
+    if has('nvim')
+        let lines = ['']
+        let jopts = {
+          \ 'on_stdout': function('s:JobNvimCallback', [lines]),
+          \ 'on_stderr': function('s:JobNvimCallback', [lines]),
+          \ 'on_exit': { j, code, _ -> s:graphql_out_callback(a:options.cb, join(lines, '')) }}
+
+        return jobstart(cmd, jopts)
+    endif
+    let lines = ['']
+    return job_start(cmd, {
+        \'out_cb': { j, str -> add(lines, str) },
+        \'err_cb': { j, str -> add(lines, str) },
+        \'exit_cb': { j, code -> s:graphql_out_callback(a:options.cb, join(lines, '')) }})
 endfunction
 
 function! bbc#github#collaborators_async(owner, repo, query, options) abort

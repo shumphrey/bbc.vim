@@ -7,6 +7,12 @@ function! s:url_encode(text) abort
     return substitute(a:text, '[?@=&<>%#/:+[:space:]]', '\=submatch(0)==" "?"+":printf("%%%02X", char2nr(submatch(0)))', 'g')
 endfunction
 
+" concat the buffer lines together
+function! s:JobNvimCallback(lines, job, data, type) abort
+    let a:lines[-1] .= remove(a:data, 0)
+    call extend(a:lines, a:data)
+endfunction
+
 " :call setreg('+', b:jira_last_curl)
 function! bbc#jira#request(path, ...) abort
     let domain = get(b:, 'jira_domain', get(g:, 'jira_domain'))
@@ -33,7 +39,21 @@ function! bbc#jira#request(path, ...) abort
     let options = a:0 ? a:1 : {}
     if has_key(options, 'async')
         let cmd = extend(['curl'], data)
-        return job_start(cmd, options.async)
+        if has('nvim')
+            let lines = ['']
+            let jopts = {
+                \ 'on_stdout': function('s:JobNvimCallback', [lines]),
+                \ 'on_stderr': function('s:JobNvimCallback', [lines]),
+                \ 'on_exit': { j, code, _ -> options.async(code, join(lines, '')) }}
+
+            return jobstart(cmd, jopts)
+        endif
+        let lines = []
+        let jopts = {
+            \ 'out_cb': { j, str -> add(lines, str) },
+            \ 'err_cb': { j, str -> add(lines, str) },
+            \ 'exit_cb': { j, code -> options.async(code, join(lines, '')) }}
+        return job_start(cmd, jopts)
     endif
 
     silent let raw = system('curl '.options)
@@ -61,14 +81,14 @@ endfunction
 " Note this is deprecated in v3 api
 " We'll want to change this to /project/search?query=<term>
 " For now, the v2 api just returns everything
-function! bbc#jira#projects_async(search, async)
-    return bbc#jira#request('/project', { 'async': a:async })
+function! bbc#jira#projects_async(search, options)
+    return bbc#jira#request('/project', { 'async': a:options.cb })
 endfunction
 
-function! bbc#jira#search_async(jql, async)
+function! bbc#jira#search_async(jql, options)
     let path = '/search?fields=summary,project,issuetype,description,assignee,reporter,components&maxResults=1000&jql='.s:url_encode(a:jql)
 
-    return bbc#jira#request(path, { 'async': a:async })
+    return bbc#jira#request(path, { 'async': a:options.cb })
 endfunction
 
 " vim: set ts=4 sw=4 et foldmethod=indent foldnestmax=1 :

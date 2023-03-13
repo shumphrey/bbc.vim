@@ -1,6 +1,11 @@
 " bbc.vim - completions for GitHub, Jira, Emojis and more
 " Maintainer:   Steven Humphrey
 
+" Provides completions for GitHub and Jira
+" Makes some assumptions about BBC setup, but might work for other situations
+"
+" See vim-rhubarb for a more standard GitHub integration
+
 if exists("g:loaded_bbc") || v:version < 700 || &cp
   finish
 endif

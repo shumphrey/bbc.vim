@@ -42,7 +42,7 @@ function! s:jira_sort_issue(i1, i2) abort
     return str2nr(one[1]) >= str2nr(two[1]) ? -1 : 1
 endfunction
 
-function! s:jira_err_callback(channel, message)
+function! s:jira_err_callback(message)
     echoerr a:message
 endfunction
 
@@ -51,7 +51,11 @@ endfunction
 " Despite :help complete-functions implying it can be
 " Instead, the async job will add to a buffer variable, and the parent job
 " can wait
-function! s:jira_issue_search_out_callback(channel, message)
+function! s:jira_issue_search_callback(code, message)
+    if a:code != 0
+        echoerr a:message
+        return
+    endif
     let data = json_decode(a:message)
     if !has_key(data, 'issues')
         return
@@ -61,7 +65,12 @@ function! s:jira_issue_search_out_callback(channel, message)
     endfor
 endfunction
 
-function! s:jira_project_search_out_callback(base, channel, message)
+function! s:jira_project_search_callback(base, code, message)
+    if a:code != 0
+        echoerr a:message
+        return
+    endif
+
     let data = json_decode(a:message)
     if type(data) != type([])
         return
@@ -73,15 +82,9 @@ function! s:jira_project_search_out_callback(base, channel, message)
     call extend(b:completions, res)
 endfunction
 
-function! s:exit_cb(name, job, status) abort
-    unlet b:async_doing[a:name]
-endfunction
-
 function! s:fetch_jira_projects(base) abort
     return bbc#jira#projects_async(a:base, {
-        \'err_cb': function('s:jira_err_callback'),
-        \'out_cb': function('s:jira_project_search_out_callback', [a:base]),
-        \'exit_cb': function('s:exit_cb', ['jira_projects']),
+        \'cb': function('s:jira_project_search_callback', [a:base]),
     \})
 endfunction
 
@@ -101,9 +104,7 @@ function! s:fetch_jira_issues(base) abort
     endif
 
     return bbc#jira#search_async(jql, {
-        \'err_cb': function('s:jira_err_callback'),
-        \'out_cb': function('s:jira_issue_search_out_callback'),
-        \'exit_cb': function('s:exit_cb', ['jira_issues']),
+        \'cb': function('s:jira_issue_search_callback'),
     \})
 endfunction
 
@@ -167,8 +168,7 @@ function! s:fetch_github_users(base) abort
     let query = substitute(a:base, '^@', '', '')
 
     return bbc#github#collaborators_async(org, repo, query, {
-        \'out_cb': function('s:github_collaborator_callback', [a:base]),
-        \'exit_cb': function('s:exit_cb', ['github_users']),
+        \'cb': function('s:github_collaborator_callback', [a:base]),
         \})
 endfunction
 
@@ -196,8 +196,7 @@ function! s:fetch_github_issues(base) abort
     let query = substitute(a:base, '^#', '', '')
 
     return bbc#github#search_issues_async(org, repo, query, {
-        \'out_cb': function('s:github_issue_callback', [a:base]),
-        \'exit_cb': function('s:exit_cb', ['github_issues']),
+        \'cb': function('s:github_issue_callback', [a:base]),
         \})
 endfunction
 
@@ -246,23 +245,30 @@ function! s:find_start(findstart, base) abort
     return col('.') - 1 - strlen(existing)
 endfunction
 
+" concat the buffer lines together
+function! s:JobNvimCallback(lines, job, data, type) abort
+    let a:lines[-1] .= remove(a:data, 0)
+    call extend(a:lines, a:data)
+endfunction
+
 function! s:wait_for_jobs(jobs) abort
     if empty(a:jobs)
         return
     endif
-    while v:true
-        let still_running = v:true
-        for job in a:jobs
+    if has('nvim')
+        return jobwait(a:jobs)
+    endif
+
+    for job in a:jobs
+        while v:true
             let status = job_status(job)
             if status !=# 'run'
-                let still_running = v:false
+                break
             endif
-        endfor
-        if !still_running
-            break
-        endif
-        sleep 1m
-    endwhile
+            sleep 1m
+        endwhile
+    endfor
+
 endfunction
 
 " Completions - completefunc (ctrl-x ctrl-u)
@@ -279,7 +285,6 @@ function! bbc#completions#completefunc(findstart, base) abort
     let async_jobs = []
     let completions = []
     let b:completions = []
-    let b:async_doing = {}
 
     let homepage = bbc#github#homepage_for_url(FugitiveRemoteUrl())
 
@@ -287,36 +292,24 @@ function! bbc#completions#completefunc(findstart, base) abort
     let s:has_jira = exists('g:jira_domain') && !empty(g:jira_domain)
 
     if s:has_jira && a:base =~? '^\w\{2,\}-'
-        let b:async_doing.jira_issues = v:true
         call extend(async_jobs, [s:fetch_jira_issues(a:base)])
     elseif s:is_github && a:base =~? '^@'
-        let b:async_doing.github_users = v:true
         call extend(async_jobs, [s:fetch_github_users(a:base)])
     elseif s:is_github && a:base =~? '^#'
-        let b:async_doing.github_issues = v:true
         call extend(async_jobs, [s:fetch_github_issues(a:base)])
     elseif a:base =~? '^:'
         call extend(completions, s:fetch_emojis(a:base))
     elseif len(a:base) > 1
         if s:has_jira
-            let b:async_doing.jira_projects = v:true
             call extend(async_jobs, [s:fetch_jira_projects(a:base)])
         endif
         if s:is_github
-            let b:async_doing.github_issues = v:true
             call extend(async_jobs, [s:fetch_github_issues(a:base)])
         endif
     endif
 
     call s:wait_for_jobs(async_jobs)
-    let i=0
-    while i < 500
-        if empty(b:async_doing)
-            break
-        endif
-        sleep 1m
-        let i = i + 1
-    endwhile
+
     call extend(completions, b:completions)
 
     return completions
