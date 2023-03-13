@@ -108,7 +108,7 @@ function! s:fetch_jira_issues(base) abort
 endfunction
 
 function! s:split_remote() abort
-    let homepage = rhubarb#HomepageForUrl(FugitiveRemoteUrl())
+    let homepage = bbc#github#homepage_for_url(FugitiveRemoteUrl())
     if empty(homepage)
         call bbc#utils#throw('Not a GitHub repo')
     endif
@@ -281,7 +281,7 @@ function! bbc#completions#completefunc(findstart, base) abort
     let b:completions = []
     let b:async_doing = {}
 
-    let homepage = rhubarb#HomepageForUrl(FugitiveRemoteUrl())
+    let homepage = bbc#github#homepage_for_url(FugitiveRemoteUrl())
 
     let s:is_github = !empty(homepage)
     let s:has_jira = exists('g:jira_domain') && !empty(g:jira_domain)

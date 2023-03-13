@@ -72,4 +72,25 @@ function! bbc#github#search_issues_async(owner, repo, query, options) abort
     return bbc#github#request(query, variables, a:options)
 endfunction
 
+
+function! bbc#github#homepage_for_url(url) abort
+    " [full_url, scheme, host_with_port, host, path]
+    if a:url =~# '://'
+        let match = matchlist(a:url, '^\(https\=://\|git://\|ssh://\)\%([^@/]\+@\)\=\(\([^/:]\+\)\%(:\d\+\)\=\)/\(.\{-\}\)\%(\.git\)\=/\=$')
+    else
+        let match = matchlist(a:url, '^\([^@/]\+@\)\=\(\([^:/]\+\)\):\(.\{-\}\)\%(\.git\)\=/\=$')
+        if !empty(match)
+            let match[1] = 'ssh://'
+        endif
+    endif
+
+    if empty(match)
+        return ''
+    elseif match[3] ==# 'github.com' || match[3] ==# 'ssh.github.com'
+        return 'https://github.com/' . match[4]
+    else
+        return ''
+    endif
+endfunction
+
 " vim: set ts=4 sw=4 et foldmethod=indent foldnestmax=1 :
