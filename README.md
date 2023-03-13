@@ -40,10 +40,10 @@ Emoji completion requires [junegunn/emoji](https://github.com/junegunn/vim-emoji
 
 To enable the completion function, add something like this to your vimrc:
 
-```
+```vim
 let g:jira_domain = 'https://my.jira.domain'
 
-augroup gitcommits
+augroup bbc
   au!
   au FileType gitcommit,markdown setlocal completefunc=bbc#complete
 augroup END
