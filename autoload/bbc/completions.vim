@@ -291,22 +291,26 @@ function! bbc#completions#completefunc(findstart, base) abort
     let s:is_github = !empty(homepage)
     let s:has_jira = exists('g:jira_domain') && !empty(g:jira_domain)
 
-    if s:has_jira && a:base =~? '^\w\{2,\}-'
-        call extend(async_jobs, [s:fetch_jira_issues(a:base)])
-    elseif s:is_github && a:base =~? '^@'
-        call extend(async_jobs, [s:fetch_github_users(a:base)])
-    elseif s:is_github && a:base =~? '^#'
-        call extend(async_jobs, [s:fetch_github_issues(a:base)])
-    elseif a:base =~? '^:'
-        call extend(completions, s:fetch_emojis(a:base))
-    elseif len(a:base) > 1
-        if s:has_jira
-            call extend(async_jobs, [s:fetch_jira_projects(a:base)])
-        endif
-        if s:is_github
+    try
+        if a:base =~? '^\w\{2,\}-'
+            call extend(async_jobs, [s:fetch_jira_issues(a:base)])
+        elseif s:is_github && a:base =~? '^@'
+            call extend(async_jobs, [s:fetch_github_users(a:base)])
+        elseif s:is_github && a:base =~? '^#'
             call extend(async_jobs, [s:fetch_github_issues(a:base)])
+        elseif a:base =~? '^:'
+            call extend(completions, s:fetch_emojis(a:base))
+        elseif len(a:base) > 1
+            if s:has_jira
+                call extend(async_jobs, [s:fetch_jira_projects(a:base)])
+            endif
+            if s:is_github
+                call extend(async_jobs, [s:fetch_github_issues(a:base)])
+            endif
         endif
-    endif
+    catch
+        echom v:errmsg
+    endtry
 
     call s:wait_for_jobs(async_jobs)
 

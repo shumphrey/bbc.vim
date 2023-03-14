@@ -19,11 +19,11 @@ function! bbc#jira#request(path, ...) abort
     let root = get(b:, 'jira_api_path', get(g:, 'jira_api_path', '/rest/api/2'))
 
     if empty(domain) || empty(root)
-        call jira#utils#throw('Missing g:jira_domain config')
+        call bbc#utils#throw('Missing g:jira_domain config')
     endif
 
     if !executable('curl')
-        call jira#utils#throw('curl is required for jira')
+        call bbc#utils#throw('curl is required for Jira support')
     endif
 
     let data = ['-sS', '-A', 'bbc/vim']

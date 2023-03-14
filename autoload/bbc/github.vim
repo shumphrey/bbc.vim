@@ -19,18 +19,32 @@ function! s:JobNvimCallback(lines, job, data, type) abort
     call extend(a:lines, a:data)
 endfunction
 
-function! s:graphql_out_callback(cb, message) abort
-    let data = json_decode(a:message)
-    if has_key(data, 'errors')
-        if type(data.errors) ==# type([])
-            for error in data.errors
-                echoerr error.message
-            endfor
-        else
-            echoerr data.errors
-        endif
+function! s:graphql_out_callback(code, cb, message) abort
+    if a:code != 0
+        echoerr a:message
         return
     endif
+    try
+        let data = json_decode(a:message)
+        if has_key(data, 'errors')
+            if type(data.errors) ==# type([])
+                for error in data.errors
+                    echom error.message
+                endfor
+            else
+                echom data.errors
+            endif
+            return
+        endif
+        if has_key(data, 'message')
+            if type(data.message) ==# type('')
+                echom data.message
+                return
+            endif
+        endif
+    catch
+        echoerr v:exception
+    endtry
     call a:cb(data)
 endfunction
 
@@ -60,7 +74,7 @@ function! bbc#github#request(query, variables, options) abort
         let jopts = {
           \ 'on_stdout': function('s:JobNvimCallback', [lines]),
           \ 'on_stderr': function('s:JobNvimCallback', [lines]),
-          \ 'on_exit': { j, code, _ -> s:graphql_out_callback(a:options.cb, join(lines, '')) }}
+          \ 'on_exit': { j, code, _ -> s:graphql_out_callback(code, a:options.cb, join(lines, '')) }}
 
         return jobstart(cmd, jopts)
     endif
@@ -68,7 +82,7 @@ function! bbc#github#request(query, variables, options) abort
     return job_start(cmd, {
         \'out_cb': { j, str -> add(lines, str) },
         \'err_cb': { j, str -> add(lines, str) },
-        \'exit_cb': { j, code -> s:graphql_out_callback(a:options.cb, join(lines, '')) }})
+        \'exit_cb': { j, code -> s:graphql_out_callback(code, a:options.cb, join(lines, '')) }})
 endfunction
 
 function! bbc#github#collaborators_async(owner, repo, query, options) abort
