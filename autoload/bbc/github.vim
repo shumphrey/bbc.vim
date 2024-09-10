@@ -95,7 +95,7 @@ endfunction
 function! bbc#github#search_issues_async(owner, repo, query, options) abort
     let nodes = 'nodes { ... on Issue { body, title, number } ... on PullRequest { body, title, number } }'
     let query = 'query IssueSearch($search: String!) { search(first: 100, query: $search, type: ISSUE) { ' . nodes . ' } }'
-    let variables = { 'search': 'repo:'.a:owner .'/'.a:repo .' is:open in:title ' . a:query }
+    let variables = { 'search': 'repo:'.a:owner .'/'.a:repo .' in:title ' . a:query }
     return bbc#github#request(query, variables, a:options)
 endfunction
 
